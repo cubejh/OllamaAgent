@@ -11,14 +11,13 @@ BASE_URL = "https://api-gateway.netdb.csie.ncku.edu.tw/api/generate"
 # Tool selector system prompt
 # -------------------------
 PROMPT_TOOL_SELECTOR = """
-你是一個回答者加上工具調度器。
-根據用戶的問題，決定是否需要使用工具，以及用什麼工具。
+你只是一個工具調度器，不直接回應。
+根據用戶問題，決定是否需要工具，以及用什麼工具。
 
 可用工具：
 {tool_prompts}
 
-請只輸出純 JSON，不要加其他文字。
-
+只輸出純 JSON，不要加其他文字。
 JSON 輸出格式：
 {{
   "tool": "<tool_name>",
@@ -86,7 +85,7 @@ def read_Prompt(user_input, api_key):
     )
 
     decision_raw = call_llm(decision_prompt, api_key)
-
+    #print(decision_raw)
     cleaned = re.sub(r"```(?:json)?\n(.*?)```", r"\1", decision_raw, flags=re.S).strip()
 
     try:

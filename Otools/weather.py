@@ -1,6 +1,6 @@
 import requests
 
-TOOL_PROMPT = '1. weather：查詢天氣。格式 {{ "city": "城市", "day": "today" }}\n'
+TOOL_PROMPT = '2. weather：查詢天氣。格式 {{ "city": "城市", "day": "today" }}\n'
 
 def weather_tool(city, day="today"):
     try:
