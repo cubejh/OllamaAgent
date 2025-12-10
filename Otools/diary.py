@@ -2,20 +2,17 @@ import os
 import requests
 from Otools.shortAsk import short_ask
 
-TOOL_PROMPT = '1.diary：這是日記工具，寫入、查詢與刪除(刪除不須再次確認)。格式 {{ "mode": "0"(寫入)或"1"(查詢)或"2"(刪除), "content": "使用者內容(刪除時給"刪除")" }}\n'
+TOOL_PROMPT = '1.diary：這是日記工具，寫入、查詢與刪除(刪除不須再次確認)。格式 {{ "mode": "write"(寫入)或"search"(查詢)或"delete"(刪除), "content": "使用者內容(刪除時給"刪除")" }}\n'
 APPEND_PROMPT = "你是日記整理器，這是日記內容，請幫我依照日期或資訊整理，並直接給我整理後的結果"
 
 def diary_tool(mode, content):
-    if(mode=="0"):
-        print("write diary")
+    if(mode=="write"):
         return write_diary(content)
-    if(mode=="1"):
-        print("search diary")
+    if(mode=="search"):
         return read_diary()
-    if(mode=="2"):
-        print("delete diary")
+    if(mode=="delete"):
         return delete_diary()
-
+    return "Something Wrong..."
 def get_diary_path(filename="diary_data.txt"):
     """get diary_data.txt path"""
     this_dir = os.path.dirname(os.path.abspath(__file__))
