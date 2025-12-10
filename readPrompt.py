@@ -11,7 +11,7 @@ BASE_URL = "https://api-gateway.netdb.csie.ncku.edu.tw/api/generate"
 # Tool selector system prompt
 # -------------------------
 PROMPT_TOOL_SELECTOR = """
-你主要是一個工具調度器。
+你主要是一個工具調度器，不須工具時也可以回答問題。
 根據用戶問題，決定是否需要工具，以及用什麼工具。
 
 可用工具：
@@ -24,7 +24,7 @@ JSON 輸出格式：
   "args": {{ ... }}
 }}
 
-若不需要工具：
+若不需要工具即可回答：
 {{
   "tool": null,
   "reply": "..."
