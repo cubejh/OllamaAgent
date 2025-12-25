@@ -7,26 +7,22 @@ def CSVReader(fileName):
     file_path = get_data_path(fileName)
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
-    return 
-
-def CourseSearcher(id,fileName):
-    return False
 
 def CourseReacordSearch(id,fileName="CourseInfo.csv"):
     courseInfo = CSVReader(fileName)
     #get id search
     #
-    return ""#True->exsist
+    return False#True->exist
 
 def CourseArrangeSearch(id,fileName="CourseArrange.csv"):
     courseInfo = CSVReader(fileName)
     #get id search
     #
-    return ""#True->exsist
+    return False#True->exist
 
 def CourseArrangeWrite(id,fileName="CourseArrange.csv"): #True for conflict
     #write and check conflict
-    return ""
+    return False
 
 def CourseArranger(id):
     if not CourseReacordSearch(id):
