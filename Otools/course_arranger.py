@@ -24,7 +24,7 @@ def CourseArrangeWrite(id,fileName="CourseArrange.csv"): #True for conflict
     #write and check conflict
     return False
 
-def CourseArranger(id):
+def course_arranger(id):
     if not CourseReacordSearch(id):
         return "尚未查詢到此課程"
     if CourseArrangeSearch(id):

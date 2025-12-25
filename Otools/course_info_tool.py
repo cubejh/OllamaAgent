@@ -12,6 +12,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
+import os
+import csv
+from Otools.get_data_path import get_data_path
 
 ENTRY_URL = "https://course.ncku.edu.tw/index.php?c=qry11215&m=en_query"
 TYPE_ZH = {"Required": "必修", "Elective": "選修"}
@@ -367,6 +370,39 @@ def _format_clean(result: Dict[str, Any]) -> str:
 # -----------------------------
 # ✅ Tool entry (like weather_tool)
 # -----------------------------
+
+def write_courses_to_csv(
+    result: Dict[str, Any],
+    csv_path: str,
+    college_code: str,
+    dept_code: str,
+    degree_label: str,
+):
+    fieldnames = ["課程代碼", "時間", "課名", "學分", "學院代碼", "科系代碼", "年級", "選修/必修"]
+
+    file_exists = os.path.exists(csv_path)
+
+    with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+
+        if not file_exists:
+            writer.writeheader()
+
+        for c in result.get("courses", []):
+            times = c.get("上課時間", [])
+            time_str = ", ".join(times) if isinstance(times, list) else str(times or "")
+
+            writer.writerow({
+                "課程代碼": c.get("課程代碼", ""),
+                "時間": time_str,
+                "課名": c.get("課名", ""),
+                "學分": c.get("學分", ""),
+                "學院代碼": college_code,
+                "科系代碼": dept_code,
+                "年級": degree_label,
+                "選修/必修": c.get("必選修", ""),
+            })
+    
 def course_info_tool(college: str, dept: str, degree: str, headless: bool = True):
     print(college + "," + dept + ","  + degree)
     """
@@ -378,6 +414,17 @@ def course_info_tool(college: str, dept: str, degree: str, headless: bool = True
         col_code, dept_no = map_to_codes(college, dept)
         degree_label = normalize_degree(degree)
         result = _query_once(col=col_code, dept_no=dept_no, degree_label=degree_label, headless=headless)
+        csv_path = get_data_path("CourseArrange.csv")
+        
+        if result.get("ok"):
+            write_courses_to_csv(
+                result=result,
+                csv_path=csv_path,
+                college_code=col_code,
+                dept_code=dept_no,
+                degree_label=degree_label,
+            )
+
         return _format_clean(result)
 
     except Exception as e:
