@@ -18,7 +18,7 @@ TYPE_ZH = {"Required": "必修", "Elective": "選修"}
 
 # ✅ 給 tool selector 的 prompt（tools_init.py 會用到）
 TOOL_PROMPT = (
-    "course_info：查詢成大選課系統（低頻、單次查詢），輸入「學院、系所、年級」，回傳課程清單（課程代碼/課名/學分/必選修/老師/上課時間/教室）。\n"
+    "3.course_info：查詢成大選課系統（低頻、單次查詢），輸入「學院、系所、年級」，回傳課程清單（課程代碼/課名/學分/必選修/老師/上課時間/教室）。\n"
     '格式 { "college": "電機資訊學院", "dept": "資訊系", "degree": "大二", "headless": true }\n'
 )
 
