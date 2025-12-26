@@ -388,13 +388,30 @@ def write_courses_to_csv(
     dept_code: str,
     degree_label: str,
 ):
-    fieldnames = ["課程代碼", "時間", "課名", "學分", "學院代碼", "科系代碼", "年級", "選修/必修"]
+    # CSV header (all English)
+    fieldnames = [
+        "course_code",   # 課程代碼
+        "time",          # 上課時間 (joined)
+        "course_name",   # 課名
+        "credits",       # 學分
+        "college_code",  # 學院代碼
+        "dept_code",     # 科系代碼
+        "grade",         # 年級
+        "required",      # Required/Elective
+    ]
 
     file_exists = os.path.exists(csv_path)
 
-    with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    # Convert Chinese type -> English
+    type_map = {
+        "必修": "Required",
+        "選修": "Elective",
+        "": "",
+        None: "",
+    }
 
+    with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
         if not file_exists:
             writer.writeheader()
 
@@ -402,16 +419,19 @@ def write_courses_to_csv(
             times = c.get("上課時間", [])
             time_str = ", ".join(times) if isinstance(times, list) else str(times or "")
 
+            required_en = type_map.get(c.get("必選修"), c.get("必選修", ""))
+
             writer.writerow({
-                "課程代碼": c.get("課程代碼", ""),
-                "時間": time_str,
-                "課名": c.get("課名", ""),
-                "學分": c.get("學分", ""),
-                "學院代碼": college_code,
-                "科系代碼": dept_code,
-                "年級": degree_label,
-                "選修/必修": c.get("必選修", ""),
+                "course_code":  c.get("課程代碼", ""),
+                "time":         time_str,
+                "course_name":  c.get("課名", ""),
+                "credits":      c.get("學分", ""),
+                "college_code": college_code,
+                "dept_code":    dept_code,
+                "grade":        degree_label,
+                "required":     required_en,
             })
+
 
 def force_switch_to_english(driver, wait: WebDriverWait) -> bool:
     """
