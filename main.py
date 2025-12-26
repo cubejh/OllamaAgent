@@ -1,9 +1,9 @@
-from readAPI import load_api_key
+from readConfig import load_config
 from ollama_UI import run  
 
 def main():
-    api_key = load_api_key()
-    run(api_key)
+    cfg = load_config(".env")
+    run(cfg)
 
 if __name__ == "__main__":
     main()

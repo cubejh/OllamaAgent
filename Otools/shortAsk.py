@@ -1,15 +1,15 @@
 import json
 import requests
-from readAPI import load_api_key 
+from readConfig import load_config
 
 BASE_URL = "https://api-gateway.netdb.csie.ncku.edu.tw/api/generate"
 
 def short_ask(user_input):
     """short asking question example"""
-    api_key = load_api_key()
-
+    api_key = load_config(".env")["API_key"]
+    model = load_config(".env")["Model"]
     payload = {
-        "model": "gemma3:4b",
+        "model": model,
         "prompt": user_input,
         "stream": False
     }

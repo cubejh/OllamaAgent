@@ -1,7 +1,7 @@
 import re
 import json
 import requests
-from readAPI import load_api_key
+from readConfig import load_config
 from Otools.tools_init import tool_map, TOOL_PROMPTS
 
 BASE_URL = "https://api-gateway.netdb.csie.ncku.edu.tw/api/generate"
@@ -48,9 +48,12 @@ PROMPT_REPLY = """
 """
 
 
-def call_llm(prompt, api_key):
+def call_llm(prompt, cfg):
+    api_key = cfg.get("API_key")
+    print(api_key)
+    model = cfg.get("Model")
     payload = {
-        "model": "gemma3:4b",
+        "model": model,
         "prompt": prompt,
         "stream": False
     }
@@ -74,7 +77,7 @@ def call_llm(prompt, api_key):
     return text.strip()
 
 
-def read_Prompt(user_input, api_key):
+def read_Prompt(user_input, cfg):
     """This is the main tool agent"""
     # -------------------------
     # choose tools or not
@@ -84,7 +87,7 @@ def read_Prompt(user_input, api_key):
         tool_prompts=TOOL_PROMPTS
     )
 
-    decision_raw = call_llm(decision_prompt, api_key)
+    decision_raw = call_llm(decision_prompt, cfg)
     print(decision_raw)
     cleaned = re.sub(r"```(?:json)?\n(.*?)```", r"\1", decision_raw, flags=re.S).strip()
 
@@ -119,5 +122,5 @@ def read_Prompt(user_input, api_key):
         user_input=user_input,
         tool_result=tool_result
     )
-    final_answer = call_llm(reply_prompt, api_key)
+    final_answer = call_llm(reply_prompt, cfg)
     return final_answer

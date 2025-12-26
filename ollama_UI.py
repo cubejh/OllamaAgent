@@ -12,14 +12,14 @@ from readPrompt import read_Prompt
 class ReplyThread(QThread):
     finished = pyqtSignal(str)
 
-    def __init__(self, user_input, api_key):
+    def __init__(self, user_input, cfg):
         super().__init__()
         self.user_input = user_input
-        self.api_key = api_key
+        self.cfg = cfg
 
     def run(self):
         try:
-            reply = read_Prompt(self.user_input, self.api_key)
+            reply = read_Prompt(self.user_input, self.cfg)
         except Exception as e:
             reply = f"Error: {str(e)}"
         self.finished.emit(reply)
@@ -29,9 +29,9 @@ class ReplyThread(QThread):
 # Main Window
 # -----------------------------
 class OllamaChatUI(QMainWindow):
-    def __init__(self, api_key):
+    def __init__(self, cfg):
         super().__init__()
-        self.api_key = api_key
+        self.cfg = cfg
         self.setWindowTitle("Ollama Chat UI")
         self.resize(600, 700)
         self.setStyleSheet("""
@@ -91,7 +91,7 @@ class OllamaChatUI(QMainWindow):
         self._insert_message(f"You: {user_input}", "#00ff00")
         self.entry.clear()
 
-        self.thread = ReplyThread(user_input, self.api_key)
+        self.thread = ReplyThread(user_input, self.cfg)
         self.thread.finished.connect(lambda reply: self._insert_message(f"Ollama: {reply}", "#00ffff"))
         self.thread.start()
 
@@ -104,9 +104,9 @@ class OllamaChatUI(QMainWindow):
 # -----------------------------
 # connect outside
 # -----------------------------
-def run(api_key):
+def run(cfg):
     """start UI"""
     app = QApplication(sys.argv)
-    window = OllamaChatUI(api_key)
+    window = OllamaChatUI(cfg)
     window.show()
     sys.exit(app.exec_())
