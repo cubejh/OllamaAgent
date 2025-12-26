@@ -11,6 +11,7 @@ from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import JavascriptException
 from webdriver_manager.chrome import ChromeDriverManager
 import os
 import csv
@@ -81,7 +82,7 @@ DEPT_CODE = {
         "電機系": "E2", "電資學院學士班": "EZ", "資訊系": "F7",
         "電機所": "N2", "多媒博士學程": "ND", "人工智慧博士學程": "NE", "資安碩士學程": "NQ",
         "資訊所": "P7", "製造所": "P9", "微電所": "Q1", "電通所": "Q3",
-        "醫資所": "O5", "南科碩專": "O6", "奈積碩專": "O7", "電資學院研究所": "QZ",
+        "醫資所": "Q5", "南科碩專": "Q6", "奈積碩專": "Q7", "電資學院研究所": "QZ",
         "電力產碩": "V6", "微波材料產碩": "V8", "電子材料產碩": "V9",
         "電機產碩": "VA", "光材產碩": "VB", "光產產碩": "VC", "微波材料光升產碩": "VD", "電子產碩": "VE",
         "靜電保護產碩": "VG", "磁性材料產碩": "VH", "電機驅動產碩": "VK", "積體製程產碩": "VM",
@@ -89,7 +90,7 @@ DEPT_CODE = {
         "光電半導體產碩": "VV", "光電材料產碩": "VW", "資訊產碩": "VX",
     },
     "規劃與設計學院": {
-        "建築系": "F7", "都計系": "F2", "工設系": "F3", "規劃設計學院學士班": "FZ",
+        "建築系": "E7", "都計系": "F2", "工設系": "F3", "規劃設計學院學士班": "FZ",
         "建築所": "N7", "都計所": "P2", "工設所": "P3", "創意所": "PA", "科藝碩士學程": "PB", "規劃設計學院研究所": "PZ",
     },
     "生物科學與科技學院": {
@@ -113,7 +114,11 @@ def _uniq_keep(seq: List[str]) -> List[str]:
 def _pick_course_table(soup: BeautifulSoup):
     for t in soup.find_all("table"):
         txt = t.get_text(" ", strip=True)
-        if ("Credits" in txt) and ("Elective" in txt) and ("Required" in txt):
+        # 英文版本
+        if ("Credits" in txt and ("Elective" in txt or "Required" in txt)):
+            return t
+        # 中文版本（常見欄位關鍵字）
+        if ("學分" in txt and ("必修" in txt or "選修" in txt)):
             return t
     return None
 
@@ -285,10 +290,17 @@ def run_once(col: str, dept_no: str, degree_label: str, headless: bool = False) 
             "//button[contains(.,'Search') or contains(.,'查詢') or contains(.,'搜尋')]"
             " | //input[contains(@value,'Search') or contains(@value,'查詢') or contains(@value,'搜尋')]"
         )))
+
         btn.click()
 
-        wait.until(lambda d: "&i=" in d.current_url)
-        wait.until(lambda d: ("Credits" in d.page_source and "Elective" in d.page_source and "Required" in d.page_source))
+        # ✅ 先等結果頁真的出來（不要管中英）
+        wait.until(lambda d: "&i=" in d.current_url)           # URL 變成帶 &i= 的結果頁
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))  # 至少有 table 出現
+
+        # ✅ 再強制切英文
+        ok = force_switch_to_english(driver, wait)
+        if not ok:
+            return {"ok": False, "error": "切換英文失敗（找不到 setLang 或 ENGLISH 按鈕）", "current_url": driver.current_url}
 
         html = driver.page_source
         courses = parse_courses(html)
@@ -379,6 +391,37 @@ def map_to_codes(college_name: str, dept_name: str) -> Tuple[str, str]:
         raise KeyError(f"找不到系所：{dept_name}（{college_name} 可用：{', '.join(dept_map.keys())}）")
 
     return COLLEGE_CODE[college_name], dept_map[dept_name]
+
+def force_switch_to_english(driver, wait: WebDriverWait) -> bool:
+    """
+    直接把頁面切到英文（不改你的輸出格式，只是讓頁面結構穩定好 parse）
+    回傳 True/False 表示是否切換成功
+    """
+
+    # 1) 最穩：直接呼叫網頁內建 JS
+    try:
+        driver.execute_script("if (typeof setLang === 'function') { setLang('eng'); }")
+        # 等頁面重新渲染一下（直到看到英文或至少 URL/DOM 有變）
+        wait.until(lambda d: "ENGLISH" in d.page_source or "Credits" in d.page_source or "Elective" in d.page_source)
+        return True
+    except Exception:
+        pass
+
+    # 2) 備援：用 onclick 精準定位那顆「ENGLISH」
+    xpaths = [
+        "//a[contains(@onclick,\"setLang('eng')\")]",
+        "//span[normalize-space()='ENGLISH']/ancestor::a[1]",
+    ]
+    for xp in xpaths:
+        try:
+            el = wait.until(EC.element_to_be_clickable((By.XPATH, xp)))
+            el.click()
+            wait.until(lambda d: "Credits" in d.page_source or "Elective" in d.page_source or "Required" in d.page_source)
+            return True
+        except Exception:
+            pass
+
+    return False
 
 
 def write_courses_to_csv(
