@@ -414,7 +414,7 @@ def course_info_tool(college: str, dept: str, degree: str, headless: bool = True
         col_code, dept_no = map_to_codes(college, dept)
         degree_label = normalize_degree(degree)
         result = _query_once(col=col_code, dept_no=dept_no, degree_label=degree_label, headless=headless)
-        csv_path = get_data_path("CourseArrange.csv")
+        csv_path = get_data_path("CourseInfo.csv")
         
         if result.get("ok"):
             write_courses_to_csv(

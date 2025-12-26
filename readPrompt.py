@@ -85,7 +85,7 @@ def read_Prompt(user_input, api_key):
     )
 
     decision_raw = call_llm(decision_prompt, api_key)
-    #print(decision_raw)
+    print(decision_raw)
     cleaned = re.sub(r"```(?:json)?\n(.*?)```", r"\1", decision_raw, flags=re.S).strip()
 
     try:
@@ -119,6 +119,5 @@ def read_Prompt(user_input, api_key):
         user_input=user_input,
         tool_result=tool_result
     )
-
     final_answer = call_llm(reply_prompt, api_key)
     return final_answer
