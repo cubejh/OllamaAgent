@@ -50,7 +50,7 @@ PROMPT_REPLY = """
 
 def call_llm(prompt, cfg):
     api_key = cfg.get("API_key")
-    if api_key == None :
+    if api_key == "" :
         print("please fill in api_key")
     model = cfg.get("Model")
     print("model: "+model)
