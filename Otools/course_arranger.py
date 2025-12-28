@@ -11,7 +11,7 @@ from Otools.get_data_path import get_data_path
 
 COURSEINFO_CSV = get_data_path("CourseInfo.csv")
 COURSEARRANGE_CSV = get_data_path("CourseArrange.csv")
-TOOL_PROMPT = '4.course_arranger：輸入課程代碼，這個工具會協助預排與加選。格式 {{ "course_code": "課程代碼" }}'
+TOOL_PROMPT = '4.course_arranger：輸入課程代碼，這個工具會協助預排與加選。格式 {{ "course_code": "課程代碼"(刪除表時請寫0), "mode": "模式"(w為加選，d為刪除整個表) }}'
 
 PERIODS = ["0","1","2","3","4","5","6","7","8","9","A","B","C","D"]
 DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
@@ -171,8 +171,20 @@ def add_course_by_code(course_code: str,
                 table[period][day] = cell + "||" + token
 
     save_course_arrange(table, coursearrange_csv)
-    return f"OK: added {code} ({len(slots)} cells) -> {coursearrange_csv}"
+    os.startfile(COURSEARRANGE_CSV)
+    return f"OK: added {code} ({len(slots)} cells) -> CSV file"
 
-def course_arranger(course_code):
-    msg = add_course_by_code(course_code, COURSEINFO_CSV, COURSEARRANGE_CSV)
+def delete_arrange(filename="CourseArrange.csv"):
+    """delete CourseArrange.csv"""
+    file_path = get_data_path(filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    return "Delete CourseArrange.csv"
+
+def course_arranger(course_code,mode):
+    msg = ''
+    if mode == "d" :
+        msg = delete_arrange()
+    else:  
+        msg = add_course_by_code(course_code, COURSEINFO_CSV, COURSEARRANGE_CSV)
     return msg

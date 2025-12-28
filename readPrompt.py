@@ -50,8 +50,10 @@ PROMPT_REPLY = """
 
 def call_llm(prompt, cfg):
     api_key = cfg.get("API_key")
-    print(api_key)
+    if api_key == None :
+        print("please fill in api_key")
     model = cfg.get("Model")
+    print("model: "+model)
     payload = {
         "model": model,
         "prompt": prompt,
@@ -88,6 +90,7 @@ def read_Prompt(user_input, cfg):
     )
 
     decision_raw = call_llm(decision_prompt, cfg)
+    print("**********Agent Select tool:**********\n")
     print(decision_raw)
     cleaned = re.sub(r"```(?:json)?\n(.*?)```", r"\1", decision_raw, flags=re.S).strip()
 
@@ -122,5 +125,7 @@ def read_Prompt(user_input, cfg):
         user_input=user_input,
         tool_result=tool_result
     )
+    print("**********tool reply********\n")
+    print(reply_prompt)
     final_answer = call_llm(reply_prompt, cfg)
     return final_answer
