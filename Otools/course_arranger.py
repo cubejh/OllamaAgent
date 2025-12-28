@@ -1,112 +1,178 @@
-import requests
+# course_arrange_add.py
+# Usage: python course_arrange_add.py F7-106
+
 import csv
+import os
 import re
+import sys
+from typing import Dict, List, Tuple, Optional
 from Otools.get_data_path import get_data_path
 
-TOOL_PROMPT = '4. course_arranger：寫入預排。格式 {{ "ID": "課程代碼" }}\n'
 
-def parse_time_slot(time_str):
+COURSEINFO_CSV = get_data_path("CourseInfo.csv")
+COURSEARRANGE_CSV = get_data_path("CourseArrange.csv")
+TOOL_PROMPT = '4.course_arranger：輸入課程代碼，這個工具會協助預排與加選。格式 {{ "course_code": "課程代碼" }}'
+
+PERIODS = ["0","1","2","3","4","5","6","7","8","9","A","B","C","D"]
+DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+DAY_MAP = {
+    "1": "Monday",
+    "2": "Tuesday",
+    "3": "Wednesday",
+    "4": "Thursday",
+    "5": "Friday",
+}
+
+def _period_to_idx(p: str) -> int:
+    p = (p or "").strip().upper()
+    if p not in PERIODS:
+        raise ValueError(f"Invalid period: {p}")
+    return PERIODS.index(p)
+
+def _expand_period_range(start_p: str, end_p: Optional[str]) -> List[str]:
+    s = _period_to_idx(start_p)
+    e = _period_to_idx(end_p) if end_p else s
+    if e < s:
+        s, e = e, s
+    return PERIODS[s:e+1]
+
+def parse_time_slots(time_str: str) -> List[Tuple[str, str]]:
     """
-    resolution [5],2~4 or [2],A~C 
-    return (weekday_index, list_of_periods)
+    Parse time strings like:
+      [4]2~4
+      [3]3
+      [1]2~3, [2]3~4, [4]3~4, [5]3~4
+    Return list of (day_name, period) pairs
     """
-    match = re.match(r"\[(\d)\],([0-9A-D]+)~([0-9A-D]+)", time_str)
-    if not match:
-        return None
-    weekday = int(match[1]) - 1  # 0=Monday, 4=Friday
-    start, end = match[2], match[3]
+    if not time_str:
+        return []
 
-    periods_order = [str(i) for i in range(10)] + ["A", "B", "C", "D"]
-    start_idx = periods_order.index(start)
-    end_idx = periods_order.index(end)
-    periods = periods_order[start_idx:end_idx+1]
-    print(weekday+","+periods+"\n")
-    return weekday, periods
+    s = time_str.strip()
+    pattern = r"\[(\d)\]\s*([0-9A-Da-d])(?:\s*~\s*([0-9A-Da-d]))?"
+    matches = re.findall(pattern, s)
 
-def CSVReader(fileName):
-    file_path = get_data_path(fileName)
-    with open(file_path, "r", encoding="utf-8-sig", newline="") as f:
-        reader = csv.reader(f)
-        return list(reader)
-
-def CourseReacordSearch(ID,fileName="CourseInfo.csv"):
-    coursesInfo = CSVReader(fileName)
-    for row in coursesInfo:
-        if row and row[0].strip() == ID.strip():
-            print("same_"+row[0].strip() + "_"+ID.strip()+"\n")
-            return True
-        #print("diff"+repr(row[0]), repr(ID))
-    return False  
-
-def CourseArrangeSearch(ID, fileName="CourseArrange.csv"):
-    coursesInfo = CSVReader(fileName)
-    for row in coursesInfo:
-        if not row:
+    out: List[Tuple[str, str]] = []
+    for day_num, start_p, end_p in matches:
+        day_name = DAY_MAP.get(day_num)
+        if not day_name:
             continue
-        for cell in row:
-            if cell.strip() == ID.strip():
-                return True
-    return False
+        for p in _expand_period_range(start_p, end_p):
+            out.append((day_name, p))
+    return out
 
-def CourseArrangeWrite(ID, fileName="CourseArrange.csv", courseFile="CourseInfo.csv"):
-    # 讀取課程資訊
-    coursesInfo = CSVReader(courseFile)
-    course = None
-    for row in coursesInfo:
-        if row and row[0].strip() == ID.strip():
-            course = row
-            break
-    if not course:
-        print("Course ID not found")
-        return False
+def read_course_from_courseinfo(course_code: str, courseinfo_csv: str = COURSEINFO_CSV) -> Dict[str, str]:
+    """
+    Supports CourseInfo.csv with or without header.
+    No-header expected columns:
+      0: course_code, 1: time, 2: course_name, 3: credits, 4: college_code,
+      5: dept_code, 6: grade, 7: required
+    Header supported:
+      course_code,time,course_name,credits,college_code,dept_code,grade,required
+    """
+    course_code = course_code.strip()
 
-    # 解析上課時間
-    time_slots = course[1].split(",")  # 支援多個時間段
-    time_slots_parsed = []
-    for ts in time_slots:
-        parsed = parse_time_slot(ts.strip())
-        if parsed:
-            time_slots_parsed.append(parsed)
+    if not os.path.exists(courseinfo_csv):
+        raise FileNotFoundError(f"Missing {courseinfo_csv}")
 
-    # 讀取課表
-    with open(fileName, "r", encoding="utf-8-sig", newline="") as f:
-        reader = list(csv.reader(f))
-    
-    # 節次對應 CSV 行
-    period_row_map = {row[0]: i for i, row in enumerate(reader[1:], 1)}
+    with open(courseinfo_csv, "r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.reader(f)
+        rows = list(reader)
 
-    # 是否有衝堂
-    conflict_flag = False
+    if not rows:
+        raise FileNotFoundError(f"{courseinfo_csv} is empty")
 
-    # 寫入課表
-    for weekday_idx, periods in time_slots_parsed:
-        for p in periods:
-            row_idx = period_row_map.get(p)
-            if row_idx is None:
+    header_like = [c.strip().lower() for c in rows[0]]
+    has_header = ("course_code" in header_like) or ("course_name" in header_like) or ("time" in header_like)
+
+    if has_header:
+        with open(courseinfo_csv, "r", encoding="utf-8-sig", newline="") as f:
+            dr = csv.DictReader(f)
+            for r in dr:
+                if (r.get("course_code") or "").strip() == course_code:
+                    return {
+                        "course_code": (r.get("course_code") or "").strip(),
+                        "time": (r.get("time") or "").strip(),
+                        "course_name": (r.get("course_name") or "").strip(),
+                    }
+    else:
+        for r in rows:
+            if not r:
                 continue
-            cell = reader[row_idx][weekday_idx + 1].strip()
-            if cell != "":
-                # 已有課 → 衝堂，append
-                reader[row_idx][weekday_idx + 1] = cell + "\n" + ID
-                conflict_flag = True
-            else:
-                reader[row_idx][weekday_idx + 1] = ID
+            if r[0].strip() == course_code:
+                return {
+                    "course_code": r[0].strip(),
+                    "time": (r[1].strip() if len(r) > 1 else ""),
+                    "course_name": (r[2].strip() if len(r) > 2 else ""),
+                }
 
-    # 保存 CSV
-    with open(fileName, "w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerows(reader)
+    raise KeyError("not found")
 
-    return conflict_flag
+def ensure_course_arrange(coursearrange_csv: str = COURSEARRANGE_CSV) -> None:
+    # Create if missing/empty
+    if os.path.exists(coursearrange_csv) and os.path.getsize(coursearrange_csv) > 0:
+        return
 
+    with open(coursearrange_csv, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(["Period"] + DAY_ORDER)
+        for p in PERIODS:
+            w.writerow([p] + [""] * len(DAY_ORDER))
 
-def course_arranger(ID):
-    print(":::"+ID+":::")
-    if not CourseReacordSearch(ID):
-        return "尚未查詢到此課程"
-    if CourseArrangeSearch(ID):
-        return "已經存在預排中了"
-    Conflict = CourseArrangeWrite(ID)
-    if Conflict:
-        return "預排成功，但與現有課程衝突"
-    return "預排成功"
+def load_course_arrange(coursearrange_csv: str = COURSEARRANGE_CSV) -> Dict[str, Dict[str, str]]:
+    ensure_course_arrange(coursearrange_csv)
+
+    table: Dict[str, Dict[str, str]] = {p: {d: "" for d in DAY_ORDER} for p in PERIODS}
+
+    with open(coursearrange_csv, "r", encoding="utf-8-sig", newline="") as f:
+        dr = csv.DictReader(f)
+        for row in dr:
+            period = (row.get("Period") or "").strip().upper()
+            if period in table:
+                for d in DAY_ORDER:
+                    table[period][d] = (row.get(d) or "").strip()
+
+    return table
+
+def save_course_arrange(table: Dict[str, Dict[str, str]], coursearrange_csv: str = COURSEARRANGE_CSV) -> None:
+    with open(coursearrange_csv, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(["Period"] + DAY_ORDER)
+        for p in PERIODS:
+            w.writerow([p] + [table[p][d] for d in DAY_ORDER])
+
+def add_course_by_code(course_code: str,
+                       courseinfo_csv: str = COURSEINFO_CSV,
+                       coursearrange_csv: str = COURSEARRANGE_CSV) -> str:
+    try:
+        course = read_course_from_courseinfo(course_code, courseinfo_csv=courseinfo_csv)
+    except KeyError:
+        return "Error: Can't Not Find Course (not in CourseInfo.csv)"
+    except Exception as e:
+        return f"Error: failed to read CourseInfo.csv: {e}"
+
+    code = course["course_code"]
+    name = course["course_name"]
+    time_str = course["time"]
+
+    slots = parse_time_slots(time_str)
+    if not slots:
+        return f"Error: find course {code} but time slot failed：{time_str!r}"
+
+    table = load_course_arrange(coursearrange_csv)
+    token = f"{code}:{name}"
+
+    for day, period in slots:
+        cell = table[period][day]
+        if not cell:
+            table[period][day] = token
+        else:
+            parts = cell.split("||")
+            if token not in parts:
+                table[period][day] = cell + "||" + token
+
+    save_course_arrange(table, coursearrange_csv)
+    return f"OK: added {code} ({len(slots)} cells) -> {coursearrange_csv}"
+
+def course_arranger(course_code):
+    msg = add_course_by_code(course_code, COURSEINFO_CSV, COURSEARRANGE_CSV)
+    return msg
