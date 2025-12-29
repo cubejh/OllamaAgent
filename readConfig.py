@@ -15,7 +15,7 @@ def load_config(filename=".env"):
             if not line or line.startswith("#"):
                 continue 
             if ":" not in line:
-                continue  # 忽略不合法行
+                continue  
             key, value = line.split(":", 1)  
             config[key.strip()] = value.strip()
 

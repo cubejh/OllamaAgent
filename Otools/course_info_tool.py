@@ -101,11 +101,13 @@ DEPT_CODE = {
         "生科所": "L5", "生技所": "L6", "生訊所": "Z2", "熱植所": "Z3", "譯農博士學程": "Z5",
     },
 }
-# -----------------------------
-# Helper: normalize
-# -----------------------------
+
 def normalize_degree(degree: str) -> str:
+    """
+        raw degree str to degree str
+    """
     d = (degree or "").strip()
+    
     mapping = {
         "大一": "1", "大二": "2", "大三": "3", "大四": "4",
         "大1": "1", "大2": "2", "大3": "3", "大4": "4",
@@ -114,6 +116,15 @@ def normalize_degree(degree: str) -> str:
     return mapping.get(d, d)
 
 def map_to_codes(college: str, dept: str) -> Tuple[str, str]:
+    """
+    Docstring for map_to_codes
+    :param college: Description
+    :type college: str
+    :param dept: Description
+    :type dept: str
+    :return: Description
+    :rtype: Tuple[str, str]
+    """
     college = (college or "").strip()
     dept = (dept or "").strip()
 
@@ -141,10 +152,10 @@ def _uniq_keep(seq: List[str]) -> List[str]:
 def _pick_course_table(soup: BeautifulSoup):
     for t in soup.find_all("table"):
         txt = t.get_text(" ", strip=True)
-        # 英文版本
+        # eng ver.
         if ("Credits" in txt and ("Elective" in txt or "Required" in txt)):
             return t
-        # 中文版本（常見欄位關鍵字）
+        # chinese ver.
         if ("學分" in txt and ("必修" in txt or "選修" in txt)):
             return t
     return None
@@ -320,11 +331,10 @@ def _query_once(col: str, dept_no: str, degree_label: str, headless: bool) -> Di
         
         btn.click()
 
-        # ✅ 先等結果頁真的出來（不要管中英）
-        wait.until(lambda d: "&i=" in d.current_url)           # URL 變成帶 &i= 的結果頁
-        wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))  # 至少有 table 出現
+        wait.until(lambda d: "&i=" in d.current_url)           # URL -> &i= result page
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))  # table...
 
-        # ✅ 再強制切英文
+        # force to english ver.
         ok = force_switch_to_english(driver, wait)
         if not ok:
             return {"ok": False, "error": "切換英文失敗（找不到 setLang 或 ENGLISH 按鈕）", "current_url": driver.current_url}
@@ -378,7 +388,7 @@ def _format_clean(result: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 # -----------------------------
-# ✅ Tool entry (like weather_tool)
+# Tool entry
 # -----------------------------
 
 def write_courses_to_csv(
@@ -439,16 +449,15 @@ def force_switch_to_english(driver, wait: WebDriverWait) -> bool:
     回傳 True/False 表示是否切換成功
     """
 
-    # 1) 最穩：直接呼叫網頁內建 JS
     try:
         driver.execute_script("if (typeof setLang === 'function') { setLang('eng'); }")
-        # 等頁面重新渲染一下（直到看到英文或至少 URL/DOM 有變）
+        # wait pages
         wait.until(lambda d: "ENGLISH" in d.page_source or "Credits" in d.page_source or "Elective" in d.page_source)
         return True
     except Exception:
         pass
 
-    # 2) 備援：用 onclick 精準定位那顆「ENGLISH」
+    # support
     xpaths = [
         "//a[contains(@onclick,\"setLang('eng')\")]",
         "//span[normalize-space()='ENGLISH']/ancestor::a[1]",
@@ -467,9 +476,8 @@ def force_switch_to_english(driver, wait: WebDriverWait) -> bool:
 def course_info_tool(college: str, dept: str, degree: str, headless: bool = True):
     print(college + "," + dept + ","  + degree)
     """
-    跟 weather_tool 一樣風格：
-    - 成功：return乾淨字串
-    - 失敗：return "Course tool error: ..."
+    - success：return clean str
+    - fail ：return "Course tool error: ..."
     """
     try:
         col_code, dept_no = map_to_codes(college, dept)
